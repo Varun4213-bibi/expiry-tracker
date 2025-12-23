@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}NGO Dashboard - Smart Expiry Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ ngo_profile.organization_name }}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Contact:</strong> {{ ngo_profile.contact_person }}</p>
+                    <p><strong>Email:</strong> {{ ngo_profile.user.email }}</p>
+                    <p><strong>Phone:</strong> {{ ngo_profile.phone }}</p>
+                    <p><strong>City:</strong> {{ ngo_profile.city }}</p>
+                    {% if ngo_profile.is_verified %}
+                        <span class="badge bg-success">Verified</span>
+                    {% else %}
+                        <span class="badge bg-warning">Pending Verification</span>
+                    {% endif %}
+                    <hr>
+                    <a href="{% url 'ngo_profile' %}" class="btn btn-outline-primary btn-sm w-100">Edit Profile</a>
+                    <a href="{% url 'ngo_inventory' %}" class="btn btn-outline-secondary btn-sm w-100 mt-2">View Inventory</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <h2 class="mb-4">NGO Dashboard</h2>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ pending_donations|length }}</h5>
+                            <p class="card-text">Pending Donations</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ inventory_count }}</h5>
+                            <p class="card-text">Inventory Items</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ expiring_soon_count }}</h5>
+                            <p class="card-text">Expiring Soon</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ completed_donations|length }}</h5>
+                            <p class="card-text">Completed Donations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Donation Requests -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Donation Requests</h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_donations %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Donor</th>
+                                        <th>Contact</th>
+                                        <th>Pickup Address</th>
+                                        <th>Items</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for donation in pending_donations %}
+                                        <tr>
+                                            <td>{{ donation.user.get_full_name|default:donation.user.username }}</td>
+                                            <td>{{ donation.user.email }}</td>
+                                            <td>{{ donation.pickup_address }}</td>
+                                            <td>
+                                                {% for item in donation.items.all %}
+                                                    {{ item.name }}{% if not forloop.last %}, {% endif %}
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm" onclick="updateDonationStatus({{ donation.id }}, 'accepted')">Accept</button>
+                                                <button class="btn btn-danger btn-sm" onclick="updateDonationStatus({{ donation.id }}, 'rejected')">Reject</button>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No pending donation requests.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateDonationStatus(donationId, status) {
+    if (confirm(`Are you sure you want to ${status} this donation?`)) {
+        fetch(`/ngo/update_donation_status/${donationId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating donation status');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

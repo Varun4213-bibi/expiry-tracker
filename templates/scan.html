@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Product Barcode Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    h2 {
+      text-align: center;
+      color: #4a148c;
+      font-size: 2rem;
+      margin-bottom: 30px;
+    }
+    #scanner-container {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      padding: 20px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+    #reader {
+      width: 100%;
+      margin: auto;
+      border: 2px solid #4a148c;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #result {
+      font-size: 1.2rem;
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #e8f5e9;
+      border-left: 6px solid #43a047;
+      color: #2e7d32;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      animation: fadeIn 0.5s ease-in-out;
+      min-height: 50px;
+    }
+
+    .manual-input {
+      margin-top: 20px;
+      text-align: left;
+    }
+    .manual-input input[type="text"] {
+      padding: 10px;
+      font-size: 1rem;
+      width: 100%;
+      border: 1px solid #aaa;
+      border-radius: 5px;
+      margin-top: 4px;
+    }
+    .manual-input button {
+      margin-top: 10px;
+      padding: 10px 25px;
+      font-size: 1rem;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .manual-input button:hover {
+      background-color: #218838;
+    }
+    .error {
+      background-color: #f8d7da;
+      border-left: 6px solid #dc3545;
+      color: #721c24;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    label {
+      font-weight: 600;
+      margin-top: 12px;
+      display: block;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h2>📦 Scan Product Barcode</h2>
+  <div id="scanner-container">
+    <div id="reader"></div>
+    <div id="result">Scan a barcode to see the product info here</div>
+
+
+
+    <div class="manual-input">
+      <label for="manual-barcode">Or enter barcode manually:</label>
+      <input type="text" id="manual-barcode" placeholder="Enter barcode number">
+      <button id="manual-submit">Submit Manual Barcode</button>
+    </div>
+  </div>
+
+  <script>
+    function onScanSuccess(decodedText, decodedResult) {
+      fetch(`/lookup-product/?barcode=${encodeURIComponent(decodedText)}`)
+      .then(response => response.json())
+      .then(data => {
+        const resultElement = document.getElementById("result");
+
+        if (data.exists) {
+          resultElement.innerText = `✅ Scanned: ${decodedText}\n📘 Product: ${data.product_name}\nRedirecting to add item...`;
+        } else {
+          resultElement.innerText = `✅ Scanned: ${decodedText}\n❌ Product not found\nRedirecting to add item...`;
+        }
+
+        // Redirect to add_item with params
+        const productName = data.product_name || '';
+        const redirectUrl = `/add-item/?barcode=${encodeURIComponent(decodedText)}&product_name=${encodeURIComponent(productName)}`;
+        window.location.href = redirectUrl;
+
+        html5QrcodeScanner.clear();
+      })
+      .catch(error => {
+        console.error('Lookup error:', error);
+        document.getElementById("result").innerText = `❌ Error looking up barcode: ${decodedText}\nRedirecting anyway...`;
+        // Fallback redirect without product_name
+        window.location.href = `/add-item/?barcode=${encodeURIComponent(decodedText)}`;
+      });
+    }
+
+    function onScanFailure(error) {
+      // Optionally handle scan failure if you want
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader",
+      {
+        fps: 10,
+        qrbox: { width: 350, height: 200 },
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
+      },
+      false
+    );
+
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+  </script>
+</body>
+</html>

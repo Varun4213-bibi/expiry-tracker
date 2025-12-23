@@ -1,0 +1,14 @@
+Django==4.2
+opencv-python
+pyzbar
+pytesseract
+Pillow
+easyocr==1.7.1
+torch
+celery[redis]
+django-celery-beat
+python-dateutil==2.8.2
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.2.2
+django-cors-headers==4.0.0
+dj-database-url==2.1.0

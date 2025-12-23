@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Push Notification Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>Push Notification Test Page</h1>
+
+    <div class="test-section">
+        <h2>1. Check Browser Support</h2>
+        <button onclick="checkSupport()">Check Push Notification Support</button>
+        <div id="support-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Request Notification Permission</h2>
+        <button onclick="requestPermission()">Request Permission</button>
+        <div id="permission-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Register Service Worker</h2>
+        <button onclick="registerServiceWorker()">Register Service Worker</button>
+        <div id="sw-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Subscribe to Push Notifications</h2>
+        <button onclick="subscribeToPush()">Subscribe</button>
+        <div id="subscribe-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Send Test Push Notification</h2>
+        <button onclick="sendTestNotification()">Send Test Notification</button>
+        <div id="test-status" class="status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. Check Current Subscription</h2>
+        <button onclick="checkSubscription()">Check Subscription</button>
+        <div id="subscription-status" class="status"></div>
+    </div>
+
+    <script>
+        let pushManager = null;
+        let vapidKey = null;
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+        }
+
+        async function checkSupport() {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                showStatus('support-status', '✅ Push notifications are supported!', 'success');
+                return true;
+            } else {
+                showStatus('support-status', '❌ Push notifications are not supported in this browser', 'error');
+                return false;
+            }
+        }
+
+        async function requestPermission() {
+            if ('Notification' in window) {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        showStatus('permission-status', '✅ Notification permission granted!', 'success');
+                        return true;
+                    } else {
+                        showStatus('permission-status', `❌ Permission ${permission}`, 'error');
+                        return false;
+                    }
+                } catch (error) {
+                    showStatus('permission-status', `❌ Error requesting permission: ${error.message}`, 'error');
+                    return false;
+                }
+            } else {
+                showStatus('permission-status', '❌ Notification API not available', 'error');
+                return false;
+            }
+        }
+
+        async function registerServiceWorker() {
+            try {
+                const registration = await navigator.serviceWorker.register('/static/js/service-worker.js');
+                console.log('Service Worker registered:', registration);
+
+                pushManager = {
+                    registration: registration,
+                    isSubscribed: false
+                };
+
+                // Get VAPID key
+                await getVapidKey();
+
+                showStatus('sw-status', '✅ Service Worker registered successfully!', 'success');
+                return true;
+            } catch (error) {
+                showStatus('sw-status', `❌ Service Worker registration failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function getVapidKey() {
+            try {
+                const response = await fetch('/api/notifications/vapid-public-key/');
+                if (response.ok) {
+                    const data = await response.json();
+                    vapidKey = data.public_key;
+                    console.log('VAPID key retrieved:', vapidKey);
+                } else {
+                    console.error('Failed to get VAPID key');
+                }
+            } catch (error) {
+                console.error('Error getting VAPID key:', error);
+            }
+        }
+
+        async function subscribeToPush() {
+            if (!pushManager || !pushManager.registration) {
+                showStatus('subscribe-status', '❌ Service Worker not registered', 'error');
+                return false;
+            }
+
+            if (!vapidKey) {
+                showStatus('subscribe-status', '❌ VAPID key not available', 'error');
+                return false;
+            }
+
+            try {
+                const subscription = await pushManager.registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidKey)
+                });
+
+                console.log('Subscription:', subscription);
+
+                // Send to server
+                const response = await fetch('/api/notifications/subscribe/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        subscription: subscription.toJSON()
+                    })
+                });
+
+                if (response.ok) {
+                    pushManager.isSubscribed = true;
+                    showStatus('subscribe-status', '✅ Successfully subscribed to push notifications!', 'success');
+                    return true;
+                } else {
+                    const errorData = await response.json();
+                    showStatus('subscribe-status', `❌ Server subscription failed: ${errorData.error || 'Unknown error'}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                showStatus('subscribe-status', `❌ Subscription failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function sendTestNotification() {
+            try {
+                const response = await fetch('/api/notifications/test/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        title: 'Test Notification',
+                        body: 'This is a test push notification from the Smart Tracker!',
+                        url: '/'
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus('test-status', '✅ Test notification sent! Check your browser for the notification.', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showStatus('test-status', `❌ Failed to send test notification: ${errorData.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('test-status', `❌ Error sending test notification: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkSubscription() {
+            if (!pushManager || !pushManager.registration) {
+                showStatus('subscription-status', '❌ Service Worker not registered', 'error');
+                return;
+            }
+
+            try {
+                const subscription = await pushManager.registration.pushManager.getSubscription();
+                if (subscription) {
+                    const endpoint = subscription.endpoint;
+                    const p256dh = subscription.getKey('p256dh');
+                    const auth = subscription.getKey('auth');
+
+                    showStatus('subscription-status',
+                        `✅ Currently subscribed!\nEndpoint: ${endpoint.substring(0, 50)}...\nP256DH: ${p256dh ? 'Present' : 'Missing'}\nAuth: ${auth ? 'Present' : 'Missing'}`,
+                        'success'
+                    );
+                } else {
+                    showStatus('subscription-status', '❌ Not currently subscribed to push notifications', 'error');
+                }
+            } catch (error) {
+                showStatus('subscription-status', `❌ Error checking subscription: ${error.message}`, 'error');
+            }
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        function getCsrfToken() {
+            const token = document.querySelector('meta[name="csrf-token"]');
+            if (token) {
+                return token.getAttribute('content');
+            }
+
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+
+            return cookieValue || '';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkSupport();
+        });
+    </script>
+</body>
+</html>

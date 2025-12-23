@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In - Access Your Account{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --dark-bg: #11131c;
+        --card-bg: #1a1c25;
+        --text-color: #f0f0f0;
+        --subtle-text: #8b8e97;
+        --accent-color: #38c172;
+        --accent-end: #00bcd4;
+        --input-bg: #272a34;
+    }
+
+    body {
+        background-color: var(--dark-bg);
+    }
+
+    .login-wrapper {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 420px;
+        background-color: var(--card-bg);
+        padding: 40px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 60px rgba(0, 0, 0, 0.5);
+        color: var(--text-color);
+    }
+
+    .logo {
+        font-size: 2.8rem;
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        margin-bottom: 5px;
+    }
+
+    .subtitle {
+        color: var(--subtle-text);
+        margin-bottom: 25px;
+    }
+
+    .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        width: 100%;
+        padding: 14px;
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-bg);
+        border-radius: 8px;
+        color: var(--text-color);
+        font-size: 1rem;
+    }
+
+    input:focus {
+    outline: none;
+    border: 2px solid var(--accent-color);
+    box-shadow: 0 0 8px rgba(0, 189, 212, 0.4);
+}
+
+
+    .password-toggle {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: var(--subtle-text);
+    }
+
+    .input-group {
+        position: relative;
+    }
+
+    .sign-in-btn {
+        padding: 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.05rem;
+        font-weight: bold;
+        cursor: pointer;
+        background: linear-gradient(to right, var(--accent-color), var(--accent-end));
+        color: #11131c;
+    }
+
+    .sign-in-btn:hover {
+        opacity: 0.9;
+    }
+
+    .divider {
+        margin: 25px 0;
+        position: relative;
+        text-align: center;
+    }
+
+    .divider::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        border-top: 1px solid var(--input-bg);
+    }
+
+    .or-text {
+        background-color: var(--card-bg);
+        padding: 0 10px;
+        position: relative;
+        color: var(--subtle-text);
+        font-size: 0.9rem;
+    }
+
+    .social-btn {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 10px;
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-bg);
+        border-radius: 8px;
+        color: var(--text-color);
+        cursor: pointer;
+    }
+
+    .social-btn:hover {
+        background-color: #31343f;
+    }
+
+    .error-messages {
+        background-color: #dc3545;
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+    }
+
+    .signup-text {
+        margin-top: 20px;
+        font-size: 0.95rem;
+        color: var(--subtle-text);
+    }
+
+    .signup-text a {
+        color: var(--accent-end);
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .signup-text a:hover {
+        text-decoration: underline;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 15px;
+        color: var(--subtle-text);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .back-link:hover {
+        color: var(--accent-end);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-container">
+        <div class="logo">⚡</div>
+        <h1>Sign In</h1>
+        <p class="subtitle">Access your account</p>
+
+        {% if form.errors %}
+        <div class="error-messages">
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+
+            <div class="input-group">
+                {{ form.username }}
+            </div>
+
+            <div class="input-group">
+                {{ form.password }}
+                <span class="password-toggle" onclick="togglePassword()">👁</span>
+            </div>
+
+            <button type="submit" class="sign-in-btn">SIGN IN</button>
+        </form>
+
+        <div class="divider">
+            <span class="or-text">NGO ACCESS</span>
+        </div>
+
+        <!-- <button class="social-btn" onclick="window.location.href='{% url 'ngo_register' %}'">
+            🏢 Register NGO
+        </button>
+
+        <button class="social-btn" onclick="window.location.href='{% url 'ngo_login' %}'">
+            🔑 NGO Login
+        </button> -->
+
+        <p class="signup-text">
+            New here?
+            <a href="{% url 'signup' %}">Create an account</a>
+        </p>
+
+        <a href="{% url 'home' %}" class="back-link">← Back to Home</a>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    const passwordField = document.querySelector('input[type="password"]');
+    if (!passwordField) return;
+
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+    } else {
+        passwordField.type = 'password';
+    }
+}
+</script>
+{% endblock %}

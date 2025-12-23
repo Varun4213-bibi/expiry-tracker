@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Add New Item - Expiry Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5" style="background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); min-height: 100vh;">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="border: 1px solid #e9ecef;">
+                <!-- Header -->
+                <div class="card-header text-white text-center py-4" style="background: linear-gradient(45deg, #1e3c72, #010917);">
+                    <h2 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Add New Product Item
+                    </h2>
+                    <p class="mb-0 opacity-75">Manually add items to track their expiry</p>
+                </div>
+
+                <!-- Form Body -->
+                <div class="card-body p-4">
+                    <form method="POST" novalidate class="needs-validation">
+                        {% csrf_token %}
+
+                        <!-- Product Name -->
+                        <div class="mb-4">
+                            <label for="id_name" class="form-label fw-bold">
+                                <i class="fas fa-tag me-2 text-primary"></i>Product Name
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-box"></i>
+                                </span>
+                                <input
+                                    type="text"
+                                    class="form-control form-control-lg {% if form.name.errors %}is-invalid{% endif %}"
+                                    name="name"
+                                    id="id_name"
+                                    value="{{ form.name.value|default_if_none:'' }}"
+                                    required
+                                    placeholder="Enter product name"
+                                    aria-describedby="nameHelp"
+                                >
+                            </div>
+
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Category -->
+                        <div class="mb-4">
+                            <label for="id_category" class="form-label fw-bold">
+                                <i class="fas fa-list me-2 text-success"></i>Category
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-folder"></i>
+                                </span>
+                                <select
+                                    class="form-select form-select-lg {% if form.category.errors %}is-invalid{% endif %}"
+                                    name="category"
+                                    id="id_category"
+                                    required
+                                    aria-describedby="categoryHelp"
+                                >
+                                    <option value="" disabled {% if not form.category.value %}selected{% endif %}>Choose a category</option>
+                                    <option value="Medicine" {% if form.category.value == 'Medicine' %}selected{% endif %}>
+                                        <i class="fas fa-pills me-2"></i>Medicine
+                                    </option>
+                                    <option value="Grocery" {% if form.category.value == 'Grocery' %}selected{% endif %}>
+                                        <i class="fas fa-shopping-cart me-2"></i>Grocery
+                                    </option>
+                                    <option value="Household" {% if form.category.value == 'Household' %}selected{% endif %}>
+                                        <i class="fas fa-home me-2"></i>Household
+                                    </option>
+                                    <option value="Others" {% if form.category.value == 'Others' %}selected{% endif %}>
+                                        <i class="fas fa-ellipsis-h me-2"></i>Others
+                                    </option>
+                                </select>
+                            </div>
+
+                            {% if form.category.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.category.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Expiry Date -->
+                        <div class="mb-4">
+                            <label for="id_expiry_date" class="form-label fw-bold">
+                                <i class="fas fa-calendar-alt me-2 text-warning"></i>Expiry Date
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-calendar"></i>
+                                </span>
+                                <input
+                                    type="date"
+                                    class="form-control form-control-lg {% if form.expiry_date.errors %}is-invalid{% endif %}"
+                                    name="expiry_date"
+                                    id="id_expiry_date"
+                                    value="{{ form.expiry_date.value|default_if_none:'' }}"
+                                    required
+                                    min="{{ today_date }}"
+                                    aria-describedby="expiryHelp"
+                                >
+                            </div>
+
+                            {% if form.expiry_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.expiry_date.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow-sm" style="background: linear-gradient(45deg, #667eea, #0e021b); border: none; padding: 14px 30px; font-weight: 600; transition: all 0.3s ease;">
+                                <i class="fas fa-plus me-2"></i>Add Product
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Success/Error Messages -->
+                    {% if message %}
+                    <div class="alert {% if 'success' in message|lower %}alert-success{% else %}alert-danger{% endif %} mt-4 rounded-pill text-center" role="alert">
+                        <i class="fas {% if 'success' in message|lower %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %} me-2"></i>
+                        {{ message }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Help Text -->
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Need to scan a barcode instead? <a href="{% url 'scan' %}" class="text-decoration-none">Go to scanner</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    .input-group-text {
+        border-color: #dee2e6;
+    }
+</style>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Item - Expiry Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+        .content {
+            padding: 32px;
+        }
+        .info-section {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .info-section h3 {
+            color: #475569;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        .ocr-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 1em;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 24px;
+        }
+        .ocr-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.95em;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .submit-button {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .actions a {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            background: #f8fafc;
+            color: #475569;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+        .actions a:hover {
+            background: #e2e8f0;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Add New Item</h1>
+            <p>Track your medicine expiry dates efficiently</p>
+        </div>
+        <div class="content">
+            {% if barcode %}
+                <div class="info-section">
+                    <h3>Scanned Information</h3>
+                    <div class="info-item">
+                        <span>Barcode:</span>
+                        <strong>{{ barcode }}</strong>
+                    </div>
+                    <div class="info-item">
+                        <span>Product Name:</span>
+                        <strong>{{ product_name }}</strong>
+                    </div>
+                </div>
+                <a href="{% url 'ocr_expiry' %}?barcode={{ barcode }}&product_name={{ product_name|urlencode }}" class="ocr-button">
+                    🪄 Detect Expiry Date with OCR
+                </a>
+            {% else %}
+                <div class="info-section">
+                    <p>No barcode scanned or entered yet. Please scan or enter details manually.</p>
+                </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="{{ form.name.id_for_label }}">Name:</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <small style="color: #ef4444;">{{ form.name.errors }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.category.id_for_label }}">Category:</label>
+                    {{ form.category }}
+                    {% if form.category.errors %}
+                        <small style="color: #ef4444;">{{ form.category.errors }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.barcode.id_for_label }}">Barcode (Optional):</label>
+                    {{ form.barcode }}
+                    {% if form.barcode.errors %}
+                        <small style="color: #ef4444;">{{ form.barcode.errors }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.expiry_date.id_for_label }}">Expiry Date:</label>
+                    {{ form.expiry_date }}
+                    {% if form.expiry_date.errors %}
+                        <small style="color: #ef4444;">{{ form.expiry_date.errors }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.notes.id_for_label }}">Notes:</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <small style="color: #ef4444;">{{ form.notes.errors }}</small>
+                    {% endif %}
+                </div>
+                <button type="submit" class="submit-button">Save Item</button>
+            </form>
+
+            <div class="actions">
+                <a href="{% url 'scan' %}">Scan Another Barcode</a>
+                <a href="{% url 'view_items' %}">View All Items</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}NGO Verification Pending - Smart Expiry Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center">
+    <div class="row justify-content-center w-100">
+        <div class="col-xl-6 col-lg-8 col-md-10">
+            <div class="card o-hidden border-0 shadow-lg my-5">
+                <div class="card-body p-5">
+                    <div class="text-center">
+                        <div class="mb-4">
+                            <i class="fas fa-clock fa-4x text-warning"></i>
+                        </div>
+                        <h1 class="h4 text-gray-900 mb-4">Account Verification Pending</h1>
+                        <p class="mb-4">
+                            Thank you for registering as an NGO partner! Your account is currently under review by our administrators.
+                            You will receive an email notification once your account is verified and activated.
+                        </p>
+                        <p class="text-muted">
+                            This process typically takes 1-2 business days. If you have any questions, please contact our support team.
+                        </p>
+                        <hr>
+                        <div class="text-center">
+                            <a href="{% url 'home' %}" class="btn btn-primary btn-user">
+                                Return to Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

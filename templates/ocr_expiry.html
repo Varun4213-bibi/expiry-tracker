@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Scan Expiry with Webcam</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 490px;
+      width: 100%;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 11px;
+      box-shadow: 0 2px 10px #ccc;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    h2 {
+      text-align: center;
+      color: #512da8;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    video,
+    canvas {
+      width: 100%;
+      max-width: 460px;
+      border-radius: 9px;
+      border: 2px solid #512da8;
+      background: #000;
+      margin-bottom: 10px;
+      display: block;
+      user-select: none;
+    }
+    .btn {
+      background: #673ab7;
+      color: white;
+      border: none;
+      padding: 12px 0;
+      border-radius: 6px;
+      font-size: 1em;
+      width: 100%;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    .btn:disabled {
+      background: #b39ddb;
+      cursor: not-allowed;
+    }
+    .btn:hover:not(:disabled) {
+      background: #512da8;
+    }
+    .alert {
+      padding: 12px 10px;
+      border-radius: 6px;
+      margin: 13px 0;
+      font-size: 1em;
+    }
+    .alert-success {
+      background: #e8f5e9;
+      color: #216037;
+      border: 1px solid #a5d6a7;
+    }
+    .alert-danger {
+      background: #ffebee;
+      color: #ab1313;
+      border: 1px solid #ef9a9a;
+    }
+    form#addInventoryBtnForm {
+      margin-top: 10px;
+    }
+    /* Responsive: scale canvas/video for small devices */
+    @media (max-width: 520px) {
+      video,
+      canvas {
+        max-width: 100%;
+      }
+      .container {
+        padding: 16px;
+        margin: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Expiry Date Scanner</h2>
+    <div id="cameraSection">
+      <form method="post" enctype="multipart/form-data" id="ocrForm" action="{% url 'ocr_expiry' %}">
+        {% csrf_token %}
+        <input type="hidden" name="barcode" value="{{ request.GET.barcode }}" />
+        <input type="hidden" name="product_name" value="{{ request.GET.product_name }}" />
+        <video id="video" autoplay playsinline muted></video>
+        <div style="display: flex; gap: 10px; margin: 10px 0; justify-content: center;">
+          <button type="button" id="captureBtn" class="btn" aria-label="Capture photo from webcam" style="flex: 1;">📸 Capture</button>
+          <button type="button" id="switchCameraBtn" class="btn" aria-label="Switch camera" style="background: #2196f3; flex: 0.5;">🔄 Camera</button>
+        </div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <input type="hidden" name="captured_image" id="capturedImageInput" />
+        <button type="submit" id="submitBtn" class="btn" disabled>🪄 Scan & Extract Date</button>
+      </form>
+    </div>
+
+    <div id="uploadSection" style="display:none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
+      <h3 style="color: #512da8; text-align: center;">📁 Upload Photo Instead</h3>
+      <form method="post" enctype="multipart/form-data" action="{% url 'ocr_expiry' %}">
+        {% csrf_token %}
+        <input type="hidden" name="barcode" value="{{ request.GET.barcode }}" />
+        <input type="hidden" name="product_name" value="{{ request.GET.product_name }}" />
+        <input type="file" name="uploaded_image" accept="image/*" capture="environment" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px;" required />
+        <button type="submit" class="btn">📤 Upload & Scan</button>
+      </form>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+      <button type="button" id="toggleModeBtn" class="btn" style="background: #2196f3;">🔄 Switch to Upload Mode</button>
+    </div>
+
+    {% if expiry_date %}
+      <div class="alert alert-success" role="alert">
+        <strong>Detected Expiry Date:</strong> {{ expiry_date }}
+        <br><small>Extracted Text: {{ extracted_text }}</small>
+      </div>
+      <form method="post" action="{% url 'ocr_expiry' %}">
+        {% csrf_token %}
+        <input type="hidden" name="barcode" value="{{ barcode }}" />
+        <input type="hidden" name="product_name" value="{{ product_name }}" />
+        <input type="hidden" name="confirm_date" value="true" />
+        <label for="confirmed_expiry">Confirm or Edit Expiry Date:</label>
+        <input type="text" id="confirmed_expiry" name="confirmed_expiry" value="{{ expiry_date }}" class="form-control" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px;" placeholder="e.g., 2025-09-10 or SEP 2025" required />
+        <button type="submit" class="btn" style="background: #4caf50;">✅ Confirm and Add Item</button>
+      </form>
+    {% elif error_message %}
+      <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+      {% if extracted_text %}
+        <div style="background: #f0f0f0; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.9em;">
+          <strong>Extracted Text:</strong> {{ extracted_text }}
+        </div>
+      {% endif %}
+      <button onclick="history.back()" class="btn" style="background: #f44336;">Try Again</button>
+    {% endif %}
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureBtn = document.getElementById('captureBtn');
+    const switchCameraBtn = document.getElementById('switchCameraBtn');
+    const capturedImageInput = document.getElementById('capturedImageInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const context = canvas.getContext('2d');
+
+    let currentFacingMode = isMobileDevice() ? "environment" : "user";
+    let currentStream = null;
+
+    // Check if we're on HTTPS or localhost (required for camera access)
+    function isSecureContext() {
+      return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/);
+    }
+
+    // Detect if device is mobile
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+             window.innerWidth <= 768;
+    }
+
+    // Start webcam video with improved mobile support
+    function startWebcam() {
+      if (!isSecureContext()) {
+        alert("Camera access requires HTTPS. For development, use localhost or enable HTTPS.");
+        return;
+      }
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        // Stop any existing stream
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Use the current facing mode
+        const constraints = {
+          video: {
+            facingMode: currentFacingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+          .then(stream => {
+            currentStream = stream;
+            video.srcObject = stream;
+            video.muted = true;
+            video.play();
+            console.log("Camera started successfully with facing mode:", currentFacingMode);
+          })
+          .catch(err => {
+            console.error("Webcam error: ", err);
+            let errorMessage = "Could not access the camera. ";
+
+            if (err.name === 'NotAllowedError') {
+              errorMessage += "Please allow camera permission and try again.";
+            } else if (err.name === 'NotFoundError') {
+              errorMessage += "No camera found on this device.";
+            } else if (err.name === 'NotReadableError') {
+              errorMessage += "Camera is already in use by another application.";
+            } else {
+              errorMessage += "Please check camera permissions and try again.";
+            }
+
+            alert(errorMessage);
+          });
+      } else {
+        alert("Camera not supported by your browser. Please update to a modern browser.");
+      }
+    }
+
+    // Capture a frame from video and set to hidden input
+    captureBtn.onclick = () => {
+      if (video.videoWidth && video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageDataUrl = canvas.toDataURL('image/png');
+        capturedImageInput.value = imageDataUrl;
+        submitBtn.disabled = false;
+        submitBtn.focus();  // Focus submit button for accessibility
+        console.log("Image captured successfully");
+      } else {
+        alert("Please allow camera access and wait for video to load.");
+      }
+    };
+
+    // Start webcam on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log("Page loaded, initializing camera...");
+      startWebcam();
+    });
+
+    // Switch camera function
+    switchCameraBtn.onclick = () => {
+      // Toggle between front and back camera
+      currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+      startWebcam();
+    };
+
+    // Handle visibility change (resume camera when tab becomes active)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && video.srcObject === null) {
+        startWebcam();
+      }
+    });
+  </script>
+</body>
+</html>

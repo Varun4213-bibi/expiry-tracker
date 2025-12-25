@@ -23,8 +23,13 @@ class PushNotificationManager {
 
     try {
       // Register service worker if not already registered
-      this.registration = await navigator.serviceWorker.register('/static/js/service-worker.js');
-      console.log('Service Worker registered successfully');
+this.registration = await navigator.serviceWorker.register('/service-worker.js', {
+    scope: '/'
+});
+await navigator.serviceWorker.ready;
+console.log('Service Worker active and ready');
+console.log('Service Worker registered at root scope');
+
 
       // Check if already subscribed
       const subscription = await this.registration.pushManager.getSubscription();
@@ -54,39 +59,44 @@ class PushNotificationManager {
   }
 
   async subscribe() {
-    if (!this.registration) return false;
+  if (!this.registration) return false;
 
-    try {
-      const subscription = await this.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
-      });
+  if (!this.vapidPublicKey) {
+    console.error('VAPID public key missing');
+    return false;
+  }
 
-      // Send subscription to server
-      const response = await fetch('/api/notifications/subscribe/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.getCsrfToken()
-        },
-        body: JSON.stringify({
-          subscription: subscription.toJSON()
-        })
-      });
+  try {
+    const subscription = await this.registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
+    });
 
-      if (response.ok) {
-        this.isSubscribed = true;
-        console.log('Successfully subscribed to push notifications');
-        return true;
-      } else {
-        console.error('Failed to subscribe on server');
-        return false;
-      }
-    } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
+    const response = await fetch('/api/notifications/subscribe/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': this.getCsrfToken()
+      },
+      body: JSON.stringify({
+        subscription: subscription.toJSON()
+      })
+    });
+
+    if (response.ok) {
+      this.isSubscribed = true;
+      console.log('Successfully subscribed to push notifications');
+      return true;
+    } else {
+      console.error('Failed to subscribe on server');
       return false;
     }
+  } catch (error) {
+    console.error('Failed to subscribe to push notifications:', error);
+    return false;
   }
+}
+
 
   async unsubscribe() {
     if (!this.registration) return false;

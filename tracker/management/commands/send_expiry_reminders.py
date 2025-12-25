@@ -5,6 +5,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from tracker.models import Item, UserProfile
+from tracker.api_views import send_push_notification
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
@@ -45,8 +46,8 @@ class Command(BaseCommand):
             # Check if user has enabled email reminders
             try:
                 profile = item.user.userprofile
-                if not profile.email_reminders_enabled:
-                    continue  # Skip this user
+                if not profile.email_reminders_enabled and not profile.push_reminders_enabled:
+                    continue  # Skip this user if both email and push are disabled
             except UserProfile.DoesNotExist:
                 pass  # No profile, assume enabled (default)
 
@@ -54,9 +55,23 @@ class Command(BaseCommand):
                 users_with_items[item.user] = []
             users_with_items[item.user].append(item)
 
-        # Send emails with retry logic
+        # Send emails and push notifications
         for user, items in users_with_items.items():
-            self.send_reminder_email_with_retry(user, items)
+            # Send email if enabled
+            try:
+                profile = user.userprofile
+                if profile.email_reminders_enabled:
+                    self.send_reminder_email_with_retry(user, items)
+            except UserProfile.DoesNotExist:
+                self.send_reminder_email_with_retry(user, items)  # Default to email enabled
+
+            # Send push notification if enabled
+            try:
+                profile = user.userprofile
+                if profile.push_reminders_enabled:
+                    self.send_push_notification(user, items)
+            except UserProfile.DoesNotExist:
+                self.send_push_notification(user, items)  # Default to push enabled
 
     def send_reminder_email_with_retry(self, user, items, max_retries=3):
         """Send reminder email with exponential backoff retry logic"""
@@ -111,3 +126,29 @@ class Command(BaseCommand):
                 else:
                     logger.error(f'Failed to send email to {user.email} after {max_retries} attempts')
                     self.stderr.write(f'Failed to send email to {user.email} after {max_retries} attempts')
+
+    def send_push_notification(self, user, items):
+        """Send push notification to a user"""
+        try:
+            # Create notification message based on number of items
+            if len(items) == 1:
+                item = items[0]
+                title = "Item Expiring Soon"
+                body = f"{item.name} expires in {item.days_until_expiry()} days"
+            else:
+                title = "Items Expiring Soon"
+                body = f"You have {len(items)} items expiring soon"
+
+            # Send the push notification
+            success = send_push_notification(user, title, body)
+
+            if success:
+                self.stdout.write(f'Sent push notification to {user.username} for {len(items)} item(s)')
+                logger.info(f'Successfully sent push notification to {user.username} for {len(items)} items')
+            else:
+                self.stdout.write(f'Failed to send push notification to {user.username}')
+                logger.warning(f'Failed to send push notification to {user.username}')
+
+        except Exception as e:
+            self.stderr.write(f'Error sending push notification to {user.username}: {e}')
+            logger.error(f'Error sending push notification to {user.username}: {e}')

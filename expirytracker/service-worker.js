@@ -2,10 +2,9 @@
 const CACHE_NAME = 'expirytracker-v1';
 const urlsToCache = [
   '/',
-  '/static/css/bootstrap.min.css',
   '/static/js/push-notifications.js',
   '/static/images/icon-192.png',
-  '/static/images/icon-512.png'
+  
 ];
 
 // Install event - cache resources

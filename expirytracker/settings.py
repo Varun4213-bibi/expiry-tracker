@@ -23,7 +23,7 @@ IS_RENDER = os.getenv('RENDER') == 'true'
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-#6^hm35m7+a$1m572%vuib&g8td@v5usl1lyn$#repbgpo9_@n')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+DEBUG = True
 
 # ALLOWED_HOSTS for Render deployment
 if IS_RENDER:
@@ -153,7 +153,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
@@ -183,6 +187,8 @@ DEFAULT_FROM_EMAIL = 'noreply@expirytracker.com'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -239,8 +245,10 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
 
 # VAPID Configuration for Push Notifications
-VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'your-private-key-here')
-VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'your-public-key-here')
+VAPID_PUBLIC_KEY = "BBMY4begAF_1gPts9oI2gcyg3Gm17qSt01wocnlhJeEv3BjKgb-wXl7zqtzspZJLcfQrrrbNUZjEybtOfnyur_k"
+VAPID_PRIVATE_KEY = "FUPOU4G8kfaFIzyk8rOlSuJx1PYglDdadXXZxet_l9g"
+
 VAPID_CLAIMS = {
-    'sub': 'mailto:admin@expirytracker.com'
+    "sub": "mailto:admin@expirytracker.com"
 }
+

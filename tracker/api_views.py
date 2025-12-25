@@ -14,6 +14,7 @@ import io
 from PIL import Image
 import json
 from pywebpush import webpush, WebPushException
+from .models import PushSubscription
 
 
 from .models import Item, UserProfile, Product
@@ -236,27 +237,13 @@ def donate_item_api(request):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def vapid_public_key(request):
-    """Return the VAPID public key for push notifications"""
-    try:
-        from ecdsa import SigningKey, NIST256p
-        import base64
-
-        # Generate VAPID keys if not set
-        private_key = settings.VAPID_PRIVATE_KEY
-        if private_key == 'your-private-key-here':
-            # Generate new keys for demo purposes
-            sk = SigningKey.generate(curve=NIST256p)
-            private_key = base64.urlsafe_b64encode(sk.to_pem()).decode('utf-8')
-            public_key = base64.urlsafe_b64encode(sk.verifying_key.to_pem()).decode('utf-8')
-        else:
-            # Load existing private key and derive public key
-            sk = SigningKey.from_pem(base64.urlsafe_b64decode(private_key))
-            public_key = base64.urlsafe_b64encode(sk.verifying_key.to_pem()).decode('utf-8')
-
-        return Response({'public_key': public_key})
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+    """
+    Return the VAPID public key for push notifications
+    DO NOT decode, encode, or regenerate anything here
+    """
+    return Response({
+        "public_key": settings.VAPID_PUBLIC_KEY
+    })
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -267,14 +254,28 @@ def subscribe_push(request):
         if not subscription_data:
             return Response({'error': 'Subscription data required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Extract individual fields from subscription
+        endpoint = subscription_data.get('endpoint')
+        keys = subscription_data.get('keys', {})
+        p256dh = keys.get('p256dh')
+        auth = keys.get('auth')
+
+        if not endpoint or not p256dh or not auth:
+            return Response({'error': 'Invalid subscription data'}, status=status.HTTP_400_BAD_REQUEST)
+
         # Save or update subscription
         subscription, created = PushSubscription.objects.get_or_create(
             user=request.user,
-            defaults={'subscription': subscription_data}
+            endpoint=endpoint,
+            defaults={
+                'p256dh': p256dh,
+                'auth': auth
+            }
         )
 
         if not created:
-            subscription.subscription = subscription_data
+            subscription.p256dh = p256dh
+            subscription.auth = auth
             subscription.save()
 
         return Response({'message': 'Successfully subscribed to push notifications'})
@@ -294,40 +295,55 @@ def unsubscribe_push(request):
 
 
 # Push Notification Utility Functions
+# Push Notification Utility Functions
 def send_push_notification(user, title, body, url=None, icon=None):
     """Send push notification to a user"""
     try:
-        subscription = PushSubscription.objects.filter(user=user).first()
-        if not subscription:
+        subscriptions = PushSubscription.objects.filter(user=user)
+        
+        if not subscriptions.exists():
             return False
+        
+        success_count = 0
+        
+        for subscription in subscriptions:
+            try:
+                payload = {
+                    'title': title,
+                    'body': body,
+                    'icon': icon or '/static/images/icon-192.png',
+                    'url': url or '/view_items/'
+                }
 
-        subscription_data = subscription.subscription
-
-        payload = {
-            'title': title,
-            'body': body,
-            'icon': icon or '/static/images/icon-192.png',
-            'badge': '/static/images/icon-192.png',
-            'url': url or '/view_items/'
-        }
-
-        webpush(
-            subscription_info=subscription_data,
-            data=json.dumps(payload),
-            vapid_private_key=settings.VAPID_PRIVATE_KEY,
-            vapid_claims=settings.VAPID_CLAIMS
-        )
-
-        return True
-    except WebPushException as e:
-        print(f"WebPushException: {e}")
-        # Remove invalid subscription
-        if subscription:
-            subscription.delete()
-        return False
+                webpush(
+                    subscription_info={
+                        'endpoint': subscription.endpoint,
+                        'keys': {
+                            'p256dh': subscription.p256dh,
+                            'auth': subscription.auth
+                        }
+                    },
+                    data=json.dumps(payload),
+                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                    vapid_claims=settings.VAPID_CLAIMS
+                )
+                
+                success_count += 1
+                
+            except WebPushException as e:
+                print(f"WebPushException for subscription {subscription.id}: {e}")
+                # Remove invalid subscription
+                subscription.delete()
+            except Exception as e:
+                print(f"Push notification error for subscription {subscription.id}: {e}")
+                # Remove invalid subscription
+                subscription.delete()
+        
+        return success_count > 0
     except Exception as e:
         print(f"Push notification error: {e}")
         return False
+
 
 
 # Helper function for OCR (adapted from existing barcode_scanner.py)
